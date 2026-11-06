@@ -1,5 +1,5 @@
 # R/03_animacao_morphing.R
-# Interpolacao geometrica (Polygon Morphing) e renderizacao animada no padrao votemapswitzerland
+# Interpolacao geometrica continua (Karim Douieb / Dorling In-Situ) com layout editorial claro
 
 suppressPackageStartupMessages({
   library(sf)
@@ -17,12 +17,12 @@ gerar_animacao_cartograma <- function(
   output_file = "outputs/animacao_dorling_seguranca_belem.gif",
   n_frames = 80,
   fps = 16,
-  largura = 1000,
-  altura = 800
+  largura = 850,
+  altura = 1050
 ) {
-  message(">> Preparando estados geometricos para interpolacao (morphing)...")
+  message(">> Preparando estados geometricos para interpolacao in-situ...")
   
-  # Estado 1: Malha original de poligonos unificados
+  # Estado 1: Malha original de limites dos bairros
   estado_mapa <- bairros_dorling_sf %>%
     mutate(
       estado_id = 1,
@@ -30,48 +30,56 @@ gerar_animacao_cartograma <- function(
     ) %>%
     select(BAIRRO_NORM, valor = all_of(coluna_valor), estado_id, estado_nome, geometry)
   
-  # Estado 2: Cartograma de Circulos (Dorling)
+  # Estado 2: Cartograma de Dorling (circulos in-situ sem sobreposicao)
   estado_dorling <- bairros_dorling_sf %>%
     mutate(
       estado_id = 2,
-      estado_nome = "2. Cartograma de Dorling (Raio Proporcional as Ocorrencias)"
+      estado_nome = "2. Cartograma de Dorling (Raio Proporcional ao Volume de Ocorrencias)"
     ) %>%
     st_set_geometry("geom_circulo") %>%
     select(BAIRRO_NORM, valor = all_of(coluna_valor), estado_id, estado_nome, geometry = geom_circulo)
   
-  # Assegurar mesmo CRS em ambos os estados
   st_crs(estado_dorling) <- st_crs(estado_mapa)
-  
-  # Unir os dois estados para animacao
   dados_combinados <- rbind(estado_mapa, estado_dorling)
   
-  message(">> Montando composicao grafica com ggplot2...")
+  message(">> Montando composicao grafica editorial (layout claro, proporcao vertical)...")
   
   p <- ggplot(dados_combinados) +
-    geom_sf(aes(fill = valor, group = BAIRRO_NORM), color = "#21262d", size = 0.3) +
+    geom_sf(aes(fill = valor, group = BAIRRO_NORM), color = "#475569", size = 0.25) +
     scale_fill_viridis_c(
       option = "inferno",
       direction = -1,
-      name = "Ocorrencias\nRegistradas\n(SIAC/SEGUP)",
       labels = scales::comma
     ) +
-    theme_void(base_size = 14) +
+    coord_sf(expand = FALSE) +
+    theme_void(base_size = 13) +
     theme(
-      plot.background = element_rect(fill = "#0d1117", color = NA),
-      panel.background = element_rect(fill = "#0d1117", color = NA),
-      legend.background = element_rect(fill = "#0d1117", color = NA),
-      text = element_text(color = "#e6edf3"),
-      plot.title = element_text(size = 16, face = "bold", hjust = 0.5, color = "#58a6ff", margin = margin(t = 12, b = 4)),
-      plot.subtitle = element_text(size = 12, hjust = 0.5, color = "#8b949e", margin = margin(b = 12)),
-      plot.caption = element_text(size = 9, hjust = 0.5, color = "#6e7681", margin = margin(t = 12, b = 8)),
-      legend.position = "right",
-      legend.text = element_text(color = "#c9d1d9"),
-      legend.title = element_text(color = "#f0f6fc", face = "bold")
+      plot.background = element_rect(fill = "#fdfcf7", color = NA),
+      panel.background = element_rect(fill = "#fdfcf7", color = NA),
+      legend.background = element_rect(fill = "#fdfcf7", color = NA),
+      text = element_text(color = "#1e293b"),
+      plot.title = element_text(size = 14, face = "bold", hjust = 0.5, color = "#0f172a", margin = margin(t = 16, b = 4)),
+      plot.subtitle = element_text(size = 11, hjust = 0.5, color = "#475569", margin = margin(b = 10)),
+      plot.caption = element_text(size = 8.5, hjust = 0.5, color = "#64748b", margin = margin(t = 12, b = 12)),
+      legend.position = "bottom",
+      legend.direction = "horizontal",
+      legend.box = "horizontal",
+      legend.title = element_text(size = 9.5, face = "bold", color = "#1e293b", margin = margin(b = 4)),
+      legend.text = element_text(size = 8.5, color = "#334155")
+    ) +
+    guides(
+      fill = guide_colorbar(
+        title = "Ocorrencias Registradas no Periodo (SIAC/SEGUP)",
+        title.position = "top",
+        title.hjust = 0.5,
+        barwidth = unit(18, "lines"),
+        barheight = unit(0.7, "lines")
+      )
     ) +
     labs(
       title = "DISTRIBUICAO ESPACIAL DE OCORRENCIAS CRIMINAIS EM BELEM (PA)",
       subtitle = "{closest_state}",
-      caption = "Fonte dos dados: SIAC/CODEC - SEGUP/PA | Malha vetorial: GeoVisor Belem | Metodologia: Cartograma de Dorling"
+      caption = "Fonte dos dados: SIAC/CODEC - SEGUP/PA | Malha: GeoVisor Belem | Inspiracao: Karim Douieb / David Zumbach"
     ) +
     transition_states(
       states = estado_nome,
@@ -93,6 +101,6 @@ gerar_animacao_cartograma <- function(
     renderer = gifski_renderer(file = output_file)
   )
   
-  message(">> Animacao gravada com sucesso em: ", output_file)
+  message(">> Animacao salva em: ", output_file)
   return(output_file)
 }

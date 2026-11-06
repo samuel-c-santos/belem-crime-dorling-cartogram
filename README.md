@@ -26,7 +26,8 @@ cartografia-seguranca-belem/
 ├── R/
 │   ├── 01_geometrias_bairros.R           # Reprojecao metrica (SIRGAS 2000 / UTM 22S) e calculo de centroides
 │   ├── 02_dorling_fisica.R               # Simulacao de forcas de colisao e repulsao de particulas
-│   └── 03_animacao_morphing.R            # Interpolacao continua de vertices e renderizacao grafica
+│   ├── 03_animacao_morphing.R            # Visualizacao 1: Morphing in-situ continuo (Karim Douieb)
+│   └── 04_animacao_narrativa_estagios.R  # Visualizacao 2: Narrativa em 4 atos por Severidade Estatistica (Zumbach)
 ├── notebooks/
 │   └── colab_runner.ipynb                # Caderno orquestrador para execucao em ambiente Google Colab
 ├── outputs/                              # Arquivos finais renderizados (.gif, .mp4)
@@ -59,10 +60,13 @@ O modulo `R/02_dorling_fisica.R` utiliza os pacotes `particles` e `tidygraph`:
 4. Iteracao do sistema dinâmico ate convergencia estatica das posicoes.
 
 ### 3.4. Interpolacao Geometrica e Renderizacao (R)
-O modulo `R/03_animacao_morphing.R` emprega `transformr`, `gganimate` e `gifski`:
-1. Mapeamento dos vertices correspondentes entre os limites poligonais originais e as coordenadas das circunferencias geradas.
-2. Interpolacao linear e cubica dos estados geometricos em taxa fixa de quadros por segundo.
-3. Exportacao do artefato grafico em resolucao definida para analise documental.
+O projeto disponibiliza dois motores de animacao complementares:
+1. **`R/03_animacao_morphing.R` (Abordagem Karim Douieb):** Deformacao in-situ continua dos poligonos oficiais em direcao aos seus respectivos centroides, convertendo-se em circulos dimensionados pelo volume de ocorrencias em layout editorial claro.
+2. **`R/04_animacao_narrativa_estagios.R` (Abordagem David Zumbach / votemapswitzerland2.R):** Narrativa em quatro fases encadeadas:
+   * Ato 1: Limites territoriais oficiais em projecao cartografica real.
+   * Ato 2: Ordenamento dos 72 bairros em grade regular segundo a extensao territorial decrescente.
+   * Ato 3: Transmutacao dos poligonos em circulos dimensionados na grade, desfazendo a dominancia visual das grandes areas insulares.
+   * Ato 4: Reagrupamento das bolhas em dois enxames densos (bubble clusters) classificados por **Severidade Estatistica** em relacao a media municipal de ocorrencias (Alta Severidade vs Baixa Severidade).
 
 ## 4. Requisitos e Procedimentos de Execucao
 
