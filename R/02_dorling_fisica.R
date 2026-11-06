@@ -1,9 +1,10 @@
 # R/02_dorling_fisica.R
-# Simulação de repulsão e empacotamento de círculos (Dorling Cartogram) via física de partículas
+# Simulacao de repulsao e empacotamento de circulos (Dorling Cartogram) via fisica de particulas
 
 suppressPackageStartupMessages({
   library(sf)
   library(dplyr)
+  library(igraph)
   library(tidygraph)
   library(particles)
 })
@@ -11,48 +12,62 @@ suppressPackageStartupMessages({
 calcular_dorling_layout <- function(
   bairros_sf,
   coluna_metrica = "TOTAL_CRIMES",
-  fator_escala_k = 65,    # Escala métrica em metros por unidade da raiz
-  raio_minimo = 80,       # Raio mínimo em metros para bairros com 0 ocorrências
-  padding = 30,           # Distância de segurança entre as bordas dos círculos (metros)
-  iteracoes = 150         # Passos de simulação física
+  fator_escala_k = 40,    # Escala metrica em metros por unidade da raiz
+  raio_minimo = 80,       # Raio minimo em metros para feicoes com 0 ocorrencias
+  padding = 35,           # Distancia minima de resguardo entre bordas dos circulos (metros)
+  iteracoes = 150         # Passos de simulacao fisica
 ) {
-  message(">> Iniciando cálculo do layout de Dorling...")
+  message(">> Iniciando calculo do layout de Dorling...")
   
+  # Preparar tabela atributiva e calcular raio proporcional a raiz do crime
   df_nodes <- bairros_sf %>%
     st_drop_geometry() %>%
     mutate(
       valor = .data[[coluna_metrica]],
-      # Raio proporcional à raiz quadrada do volume criminal (conserva área da bolha)
       radius = ifelse(valor > 0, fator_escala_k * sqrt(valor), raio_minimo),
       x = x_orig,
       y = y_orig
+    ) %>%
+    arrange(desc(radius))
+  
+  message(">> Executando simulacao de forcas fisicas via {particles} (metodologia votemapswitzerland)...")
+  
+  # Construir grafo de particulas
+  graph <- erdos.renyi.game(nrow(df_nodes), 0) %>%
+    as_tbl_graph() %>%
+    mutate(
+      x = df_nodes$x,
+      y = df_nodes$y,
+      radius = df_nodes$radius
     )
   
-  # Criar grafo de partículas
-  graph <- as_tbl_graph(df_nodes)
-  
-  message(">> Executando simulação de forças físicas (atração ao centroide + colisão)...")
-  
-  sim <- simulation(graph) %>%
-    # Força 1: Atração elástica em direção à coordenada geográfica original
-    w_force(x_force(x = x_orig, strength = 0.08)) %>%
-    w_force(y_force(y = y_orig, strength = 0.08)) %>%
-    # Força 2: Repulsão mútua / colisão entre círculos com margem de segurança
-    w_force(collision_force(rad = radius + padding, strength = 0.9, n_iter = 3)) %>%
-    # Executar simulação de passos de física
+  # Executar engine de forcas: ancoragem elastica ao centroide + colisao circular
+  sim <- graph %>%
+    simulate(setup = predefined_genesis(x, y)) %>%
+    wield(collision_force, radius = radius + padding, n_iter = 5) %>%
+    wield(x_force, x = x, strength = 0.08) %>%
+    wield(y_force, y = y, strength = 0.08) %>%
     evolve(steps = iteracoes)
   
-  # Extrair posições estabilizadas
-  res_nodes <- as_tibble(sim)
+  # Extrair coordenadas finais estabilizadas
+  positions <- as_tibble(sim$position)
+  names(positions)[1:2] <- c("x_pos", "y_pos")
   
-  bairros_sf <- bairros_sf %>%
+  df_nodes <- df_nodes %>%
     mutate(
-      x_dorling = res_nodes$x,
-      y_dorling = res_nodes$y,
-      radius_dorling = res_nodes$radius
+      x_dorling = positions$x_pos,
+      y_dorling = positions$y_pos,
+      radius_dorling = radius
     )
   
-  # Gerar geometrias circulares (buffers no ponto estabilizado)
+  # Reatribuir as colunas calculadas ao objeto sf original
+  bairros_sf <- bairros_sf %>%
+    left_join(
+      df_nodes %>% select(BAIRRO_NORM, x_dorling, y_dorling, radius_dorling),
+      by = "BAIRRO_NORM"
+    )
+  
+  # Gerar circunferencias geometricas estabilizadas (buffers no sistema projetado metrico)
   circulos_sfc <- st_buffer(
     st_sfc(lapply(1:nrow(bairros_sf), function(i) {
       st_point(c(bairros_sf$x_dorling[i], bairros_sf$y_dorling[i]))
@@ -62,6 +77,6 @@ calcular_dorling_layout <- function(
   
   bairros_sf$geom_circulo <- circulos_sfc
   
-  message(">> Layout de Dorling concluído sem sobreposição de partículas!")
+  message(">> Layout de Dorling estabilizado sem sobreposicoes!")
   return(bairros_sf)
 }

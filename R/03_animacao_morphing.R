@@ -29,14 +29,14 @@ gerar_animacao_cartograma <- function(
     ) %>%
     select(BAIRRO_NORM, valor = all_of(coluna_valor), estado_id, estado_nome, geometry)
   
-  # Estado 2: Cartograma de Círculos (Dorling)
+  # Estado 2: Cartograma de Circulos (Dorling)
   estado_dorling <- bairros_dorling_sf %>%
     mutate(
       estado_id = 2,
-      estado_nome = "2. Cartograma de Dorling (Raio ~ Volume de Ocorrências SIAC)",
-      geometry = geom_circulo
+      estado_nome = "2. Cartograma de Dorling (Raio Proporcional ao Volume de Ocorrencias)"
     ) %>%
-    select(BAIRRO_NORM, valor = all_of(coluna_valor), estado_id, estado_nome, geometry)
+    st_set_geometry("geom_circulo") %>%
+    select(BAIRRO_NORM, valor = all_of(coluna_valor), estado_id, estado_nome)
   
   # Unir os estados
   dados_combinados <- bind_rows(estado_mapa, estado_dorling)
