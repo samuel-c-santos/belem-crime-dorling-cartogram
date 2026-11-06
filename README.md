@@ -84,7 +84,7 @@ O processamento computacional intensivo de particulas e a renderizacao quadro a 
 ## 5. Referencias e Citacoes
 
 1. **Dorling, D. (1996).** *Area Cartograms: Their Use and Creation.* Concepts and Techniques in Modern Geography (CATMOG), No. 59. University of East Anglia, Norwich: Environmental Publications.
-2. **Grossenbacher, T. (2018).** *votemapswitzerland: Code and Data for the Animated Map of Swiss Referendum Votes.* SRF Data / GitHub repository. Disponivel em: <https://github.com/grssnbchr/votemapswitzerland>.
+2. **Zumbach, D. (2020).** *votemapswitzerland: A Swiss version of the famous visualization «Land doesn't vote, people do».* SRF Data / GitHub repository. Disponivel em: <https://github.com/zumbov2/votemapswitzerland>.
 3. **Secretaria de Estado de Seguranca Publica e Defesa Social do Para (SEGUP/PA).** *Sistema Integrado de Seguranca Publica (SIAC).* Coordenadoria de Estatistica e Analise Criminal (CODEC). Dados abertos de ocorrencias criminais. Disponivel em: <https://codec.segup.pa.gov.br/>.
 4. **Pedersen, T. L. (2020).** *transformr: Polygon and Path Morphing; particles: A Simulation of Particle Systems; gganimate: A Grammar of Animated Graphics.* R packages.
 5. **Prefeitura Municipal de Belem / CODEM.** *Malha de Bairros Oficiais do Municipio de Belem.* Base vetorial consolidada via projeto GeoVisor Belem.
