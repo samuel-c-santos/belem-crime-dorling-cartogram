@@ -19,15 +19,13 @@ gerar_animacao_votemap2 <- function(
   bairros_sf,
   coluna_valor = "TOTAL_CRIMES",
   output_file = "outputs/animacao_narrativa_estagios_belem.gif",
+  cor_fundo = "#ffffff",
   n_frames = 110,
   fps = 16,
-  largura = 1050,
-  altura = 750
+  largura = 800,
+  altura = 800
 ) {
   message(">> Iniciando construcao dos estagios (votemapswitzerland2.R)...")
-  
-  # Cor de fundo unificada e padrao tipografico editorial
-  cor_fundo <- "#f4f5f7"
   
   # 1. Definir media municipal e classificacao de severidade
   media_crimes <- mean(bairros_sf[[coluna_valor]], na.rm = TRUE)
@@ -39,7 +37,7 @@ gerar_animacao_votemap2 <- function(
   
   message(sprintf(">> Media municipal de crimes calculada: %.1f ocorrencias.", media_crimes))
   
-  # Coordenadas de enquadramento do mapa
+  # Coordenadas e extensoes da malha
   bbox_orig <- st_bbox(bairros_sf)
   largura_mapa <- bbox_orig$xmax - bbox_orig$xmin
   altura_mapa  <- bbox_orig$ymax - bbox_orig$ymin
@@ -57,13 +55,15 @@ gerar_animacao_votemap2 <- function(
     select(BAIRRO_NORM, valor, severidade, fase_id, fase_label, geometry)
   
   # =========================================================================
-  # ATO 2: Grade Ordenada por Area Territorial (Ordem Decrescente)
+  # ATO 2: Grade Ordenada por Area Territorial (9 colunas x 8 linhas)
   # =========================================================================
-  message(">> Calculando posicoes da grade ordenada por extensao territorial...")
+  message(">> Calculando posicoes e escalas da grade...")
   
-  # 72 bairros em grade 9 colunas x 8 linhas
   n_cols <- 9
   n_rows <- 8
+  
+  step_x <- largura_mapa / n_cols
+  step_y <- altura_mapa / n_rows
   
   bairros_grid <- bairros_sf %>%
     arrange(desc(area_km2)) %>%
@@ -71,20 +71,27 @@ gerar_animacao_votemap2 <- function(
       rank_area = row_number(),
       col_idx = (rank_area - 1) %% n_cols,
       row_idx = (rank_area - 1) %/% n_cols,
-      step_x = largura_mapa / (n_cols + 1),
-      step_y = altura_mapa / (n_rows + 1),
-      x_grid = bbox_orig$xmin + (col_idx + 1) * step_x,
-      y_grid = bbox_orig$ymax - (row_idx + 1) * step_y
+      x_grid = bbox_orig$xmin + (col_idx + 0.5) * step_x,
+      y_grid = bbox_orig$ymax - (row_idx + 0.5) * step_y
     )
   
-  # Translada os poligonos para a grade
+  # Escalar e transladar os poligonos para preencherem visivelmente a celula da grade
   geoms_grid <- lapply(1:nrow(bairros_grid), function(i) {
     b_geom <- bairros_grid$geometry[[i]]
     cx <- bairros_grid$x_orig[i]
     cy <- bairros_grid$y_orig[i]
     gx <- bairros_grid$x_grid[i]
     gy <- bairros_grid$y_grid[i]
-    (b_geom - c(cx, cy)) * 0.45 + c(gx, gy)
+    
+    # Dimensoes do poligono
+    bb <- st_bbox(b_geom)
+    b_w <- max(bb$xmax - bb$xmin, 100)
+    b_h <- max(bb$ymax - bb$ymin, 100)
+    
+    # Fator de escala para ocupar ~75% da celula da grade
+    escala <- min((step_x * 0.75) / b_w, (step_y * 0.75) / b_h)
+    
+    (b_geom - c(cx, cy)) * escala + c(gx, gy)
   })
   
   estado_2 <- bairros_grid %>%
@@ -98,16 +105,16 @@ gerar_animacao_votemap2 <- function(
   # =========================================================================
   # ATO 3: Circulos Proporcionais ao Crime na Grade
   # =========================================================================
-  message(">> Gerando circulos proporcionais na grade de bairros...")
+  message(">> Gerando circulos proporcionais calibrados na grade...")
   
-  fator_escala_grid <- 35
-  raio_min_grid <- 60
+  raio_max_grid <- min(step_x, step_y) * 0.42
+  max_valor <- max(bairros_grid$valor, na.rm = TRUE)
   
   circulos_grid <- lapply(1:nrow(bairros_grid), function(i) {
     gx <- bairros_grid$x_grid[i]
     gy <- bairros_grid$y_grid[i]
     val <- bairros_grid$valor[i]
-    r <- ifelse(val > 0, fator_escala_grid * sqrt(val), raio_min_grid)
+    r <- max(sqrt(val / max_valor) * raio_max_grid, min(step_x, step_y) * 0.08)
     st_buffer(st_point(c(gx, gy)), dist = r)
   })
   
@@ -122,17 +129,18 @@ gerar_animacao_votemap2 <- function(
   # =========================================================================
   # ATO 4: Rearranjo em Dois Enxames de Bolhas (Severidade Estatistica)
   # =========================================================================
-  message(">> Empacotando enxames de bolhas por Severidade Estatistica via {particles}...")
+  message(">> Empacotando enxames de bolhas por Severidade Estatistica...")
   
-  x_centro_alta  <- bbox_orig$xmin + 0.28 * largura_mapa
-  x_centro_baixa <- bbox_orig$xmin + 0.72 * largura_mapa
+  x_centro_alta  <- bbox_orig$xmin + 0.32 * largura_mapa
+  x_centro_baixa <- bbox_orig$xmin + 0.68 * largura_mapa
   y_centro_ambos <- centro_y
   
-  empacotar_cluster <- function(df_sub, x_alvo, y_alvo, spacing = 40) {
+  empacotar_cluster <- function(df_sub, x_alvo, y_alvo, spacing = 50) {
+    raio_max_cluster <- largura_mapa * 0.08
     df_nodes <- df_sub %>%
       arrange(desc(valor)) %>%
       mutate(
-        radius = ifelse(valor > 0, 36 * sqrt(valor), 70),
+        radius = max(sqrt(valor / max_valor) * raio_max_cluster, largura_mapa * 0.015),
         x = x_alvo,
         y = y_alvo
       )
@@ -148,11 +156,10 @@ gerar_animacao_votemap2 <- function(
     sim <- g %>%
       simulate(setup = predefined_genesis(x, y)) %>%
       wield(collision_force, radius = radius + spacing, n_iter = 6) %>%
-      wield(x_force, x = x_alvo, strength = 0.1) %>%
-      wield(y_force, y = y_alvo, strength = 0.1) %>%
+      wield(x_force, x = x_alvo, strength = 0.12) %>%
+      wield(y_force, y = y_alvo, strength = 0.12) %>%
       evolve(steps = 180)
     
-    # Extrair coordenadas com indexacao de matriz para evitar falha de nomes de colunas
     pos_mat <- as.matrix(sim$position)
     df_nodes$x_cluster <- pos_mat[, 1]
     df_nodes$y_cluster <- pos_mat[, 2]
@@ -180,30 +187,30 @@ gerar_animacao_votemap2 <- function(
   # =========================================================================
   todos_estados <- rbind(estado_1, estado_2, estado_3, estado_4)
   
-  message(">> Montando composicao grafica com estetica editorial e tipografia tratada...")
+  message(">> Montando composicao grafica (formato quadrado e fundo continuo)...")
   
   p <- ggplot(todos_estados) +
-    geom_sf(aes(fill = severidade, group = BAIRRO_NORM), color = "#ffffff", size = 0.35) +
+    geom_sf(aes(fill = severidade, group = BAIRRO_NORM), color = "#475569", size = 0.25) +
     scale_fill_manual(
       values = c(
-        "Acima da Media (Alta Severidade)" = "#c026d3",
+        "Acima da Media (Alta Severidade)" = "#b91c1c",
         "Abaixo da Media (Baixa Severidade)" = "#0284c7"
       ),
       name = "Classificacao Municipal em Relacao a Media:"
     ) +
     theme_void(base_size = 13) +
     theme(
-      plot.background = element_rect(fill = cor_fundo, color = cor_fundo),
-      panel.background = element_rect(fill = cor_fundo, color = cor_fundo),
-      legend.background = element_rect(fill = cor_fundo, color = cor_fundo),
-      plot.margin = margin(t = 20, r = 24, b = 20, l = 24),
+      plot.background = element_rect(fill = cor_fundo, color = NA),
+      panel.background = element_rect(fill = cor_fundo, color = NA),
+      legend.background = element_rect(fill = cor_fundo, color = NA),
+      plot.margin = margin(t = 16, r = 16, b = 16, l = 16),
       text = element_text(color = "#0f172a", family = "sans"),
       plot.title = element_text(size = 14, face = "bold", hjust = 0.5, color = "#0f172a", margin = margin(b = 4)),
-      plot.subtitle = element_text(size = 11, face = "bold", hjust = 0.5, color = "#475569", margin = margin(b = 12)),
-      plot.caption = element_text(size = 8.5, hjust = 0.5, color = "#64748b", margin = margin(t = 12)),
+      plot.subtitle = element_text(size = 11, face = "bold", hjust = 0.5, color = "#334155", margin = margin(b = 8)),
+      plot.caption = element_text(size = 8.5, hjust = 0.5, color = "#64748b", margin = margin(t = 10, b = 4)),
       legend.position = "bottom",
       legend.direction = "horizontal",
-      legend.title = element_text(size = 9.5, face = "bold", color = "#1e293b", margin = margin(r = 10)),
+      legend.title = element_text(size = 9.5, face = "bold", color = "#1e293b", margin = margin(r = 8)),
       legend.text = element_text(size = 9, color = "#1e293b")
     ) +
     labs(
