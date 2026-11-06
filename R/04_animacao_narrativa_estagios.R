@@ -105,7 +105,7 @@ gerar_animacao_votemap2 <- function(
   # =========================================================================
   # ATO 3: Circulos Proporcionais ao Crime na Grade
   # =========================================================================
-  message(">> Gerando circulos proporcionais calibrados na grade...")
+  message(">> Gerando circulos proporcionais na grade...")
   
   raio_max_grid <- min(step_x, step_y) * 0.42
   max_valor <- max(bairros_grid$valor, na.rm = TRUE)
@@ -187,7 +187,9 @@ gerar_animacao_votemap2 <- function(
   # =========================================================================
   todos_estados <- rbind(estado_1, estado_2, estado_3, estado_4)
   
-  message(">> Montando composicao grafica (formato quadrado e fundo continuo)...")
+  message(">> Montando composicao grafica...")
+  
+  familia_fonte <- if ("plex" %in% tryCatch(sysfonts::font_families(), error = function(e) "")) "plex" else "sans"
   
   p <- ggplot(todos_estados) +
     geom_sf(aes(fill = severidade, group = BAIRRO_NORM), color = "#475569", size = 0.25) +
@@ -204,7 +206,7 @@ gerar_animacao_votemap2 <- function(
       panel.background = element_rect(fill = cor_fundo, color = NA),
       legend.background = element_rect(fill = cor_fundo, color = NA),
       plot.margin = margin(t = 16, r = 16, b = 16, l = 16),
-      text = element_text(color = "#0f172a", family = "sans"),
+      text = element_text(color = "#0f172a", family = familia_fonte),
       plot.title = element_text(size = 14, face = "bold", hjust = 0.5, color = "#0f172a", margin = margin(b = 4)),
       plot.subtitle = element_text(size = 11, face = "bold", hjust = 0.5, color = "#334155", margin = margin(b = 8)),
       plot.caption = element_text(size = 8.5, hjust = 0.5, color = "#64748b", margin = margin(t = 10, b = 4)),
