@@ -8,6 +8,9 @@ suppressPackageStartupMessages({
   library(stringi)
 })
 
+# Desativar motor esferico S2 para evitar conflito com vertices planares (utiliza engine GEOS padrão)
+sf_use_s2(FALSE)
+
 normalizar_texto <- function(texto) {
   texto %>%
     stri_trans_general("Latin-ASCII") %>%
@@ -29,18 +32,15 @@ preparar_geometrias_bairros <- function(
       BAIRRO_NORM = normalizar_texto(nome)
     )
   
-  message(">> Dissolvendo poligonos fragmentados e unificando bairros duplicados...")
-  # Dissolver bairros que possuem multiplas feicoes/setores
-  bairros_dissolved <- bairros_raw %>%
-    group_by(BAIRRO_NORM) %>%
-    summarise(geometry = st_union(geometry), .groups = "drop") %>%
-    st_make_valid()
+  # Validar geometrias planas
+  message(">> Validando e corrigindo topologia com GEOS...")
+  bairros_valid <- st_make_valid(bairros_raw)
   
-  # Reprojetar para CRS Metrico (metros) para calculos fisicos corretos
+  # Reprojetar para CRS Metrico (SIRGAS 2000 UTM 22S)
   message(">> Reprojetando para EPSG:", crs_metrico, " (SIRGAS 2000 / UTM 22S)...")
-  bairros_utm <- st_transform(bairros_dissolved, crs = crs_metrico)
+  bairros_utm <- st_transform(bairros_valid, crs = crs_metrico)
   
-  # Garantir topologia de POLYGON simples (1 feicao por bairro) para evitar segfault no transformr
+  # Assegurar geometria simples POLYGON
   bairros_utm <- bairros_utm %>%
     st_cast("POLYGON") %>%
     mutate(area_feicao = as.numeric(st_area(geometry))) %>%
@@ -78,6 +78,6 @@ preparar_geometrias_bairros <- function(
       TAXA_CRIMES_KM2 = TOTAL_CRIMES / area_km2
     )
   
-  message(">> Concluido! Bairros unicos e limpos processados: ", nrow(bairros_dados))
+  message(">> Concluido! Bairros processados com sucesso: ", nrow(bairros_dados))
   return(bairros_dados)
 }
