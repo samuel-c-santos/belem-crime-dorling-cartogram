@@ -12,6 +12,7 @@ import logging
 from unicodedata import normalize
 import requests
 import pandas as pd
+from datetime import date, timedelta
 import urllib3
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -40,7 +41,13 @@ def clean_text(text: str) -> str:
         return ""
     return normalize("NFKD", text).encode("ASCII", "ignore").decode("ASCII").upper().strip()
 
-def extrair_dados_siac(data_inicio: str = "2024-01-01", data_fim: str = "2024-06-30", output_dir: str = "data"):
+def extrair_dados_siac(data_inicio: str = None, data_fim: str = None, output_dir: str = "data"):
+    # Janela deslizante padrao: data atual menos 365 dias
+    hoje = date.today()
+    if not data_fim:
+        data_fim = hoje.strftime("%Y-%m-%d")
+    if not data_inicio:
+        data_inicio = (hoje - timedelta(days=365)).strftime("%Y-%m-%d")
     sessao = requests.Session()
     sessao.verify = False
 
@@ -164,7 +171,7 @@ def extrair_dados_siac(data_inicio: str = "2024-01-01", data_fim: str = "2024-06
     return df, agregado
 
 if __name__ == "__main__":
-    ini = sys.argv[1] if len(sys.argv) > 1 else "2024-01-01"
-    fim = sys.argv[2] if len(sys.argv) > 2 else "2024-03-31"
+    ini = sys.argv[1] if len(sys.argv) > 1 else None
+    fim = sys.argv[2] if len(sys.argv) > 2 else None
     out = sys.argv[3] if len(sys.argv) > 3 else "data"
     extrair_dados_siac(ini, fim, out)

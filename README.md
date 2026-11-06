@@ -69,9 +69,14 @@ O modulo `R/03_animacao_morphing.R` emprega `transformr`, `gganimate` e `gifski`
 ### 4.1. Ambiente Local (Extracao)
 Requisitos: Python 3.10 ou superior, `requests`, `pandas`, `openpyxl`.
 
-Comando de execucao:
+Comando de execucao (modo automatico: janela deslizante dos ultimos 365 dias):
 ```bash
-python scripts/01_extrair_siac.py "2024-01-01" "2024-03-31" "data"
+python scripts/01_extrair_siac.py
+```
+
+Ou com delimitacao manual de datas:
+```bash
+python scripts/01_extrair_siac.py "2023-01-01" "2023-12-31" "data"
 ```
 
 ### 4.2. Ambiente de Nuvem (Google Colab)
