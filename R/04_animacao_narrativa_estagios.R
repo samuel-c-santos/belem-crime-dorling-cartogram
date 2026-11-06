@@ -19,20 +19,22 @@ gerar_animacao_votemap2 <- function(
   bairros_sf,
   coluna_valor = "TOTAL_CRIMES",
   output_file = "outputs/animacao_narrativa_estagios_belem.gif",
-  n_frames = 120,
+  n_frames = 110,
   fps = 16,
-  largura = 1100,
-  altura = 850
+  largura = 1050,
+  altura = 750
 ) {
   message(">> Iniciando construcao dos estagios (votemapswitzerland2.R)...")
+  
+  # Cor de fundo unificada e padrao tipografico editorial
+  cor_fundo <- "#f4f5f7"
   
   # 1. Definir media municipal e classificacao de severidade
   media_crimes <- mean(bairros_sf[[coluna_valor]], na.rm = TRUE)
   bairros_sf <- bairros_sf %>%
     mutate(
       valor = .data[[coluna_valor]],
-      severidade = ifelse(valor >= media_crimes, "Acima da Media (Alta Severidade)", "Abaixo da Media (Baixa Severidade)"),
-      severidade_cor = ifelse(valor >= media_crimes, "#b91c1c", "#0284c7")
+      severidade = ifelse(valor >= media_crimes, "Acima da Media (Alta Severidade)", "Abaixo da Media (Baixa Severidade)")
     )
   
   message(sprintf(">> Media municipal de crimes calculada: %.1f ocorrencias.", media_crimes))
@@ -69,21 +71,19 @@ gerar_animacao_votemap2 <- function(
       rank_area = row_number(),
       col_idx = (rank_area - 1) %% n_cols,
       row_idx = (rank_area - 1) %/% n_cols,
-      # Espacamento metrico da grade centrado na tela
       step_x = largura_mapa / (n_cols + 1),
       step_y = altura_mapa / (n_rows + 1),
       x_grid = bbox_orig$xmin + (col_idx + 1) * step_x,
       y_grid = bbox_orig$ymax - (row_idx + 1) * step_y
     )
   
-  # Translada os poligonos para a grade com escala reduzida para caber nas celulas
+  # Translada os poligonos para a grade
   geoms_grid <- lapply(1:nrow(bairros_grid), function(i) {
     b_geom <- bairros_grid$geometry[[i]]
     cx <- bairros_grid$x_orig[i]
     cy <- bairros_grid$y_orig[i]
     gx <- bairros_grid$x_grid[i]
     gy <- bairros_grid$y_grid[i]
-    # Normalizar escala e transladar
     (b_geom - c(cx, cy)) * 0.45 + c(gx, gy)
   })
   
@@ -124,7 +124,6 @@ gerar_animacao_votemap2 <- function(
   # =========================================================================
   message(">> Empacotando enxames de bolhas por Severidade Estatistica via {particles}...")
   
-  # Dois centros de atracao: Alta Severidade (Esquerda) e Baixa Severidade (Direita)
   x_centro_alta  <- bbox_orig$xmin + 0.28 * largura_mapa
   x_centro_baixa <- bbox_orig$xmin + 0.72 * largura_mapa
   y_centro_ambos <- centro_y
@@ -133,7 +132,7 @@ gerar_animacao_votemap2 <- function(
     df_nodes <- df_sub %>%
       arrange(desc(valor)) %>%
       mutate(
-        radius = ifelse(valor > 0, 38 * sqrt(valor), 70),
+        radius = ifelse(valor > 0, 36 * sqrt(valor), 70),
         x = x_alvo,
         y = y_alvo
       )
@@ -153,9 +152,10 @@ gerar_animacao_votemap2 <- function(
       wield(y_force, y = y_alvo, strength = 0.1) %>%
       evolve(steps = 180)
     
-    pos <- as_tibble(sim$position)
-    df_nodes$x_cluster <- pos$V1
-    df_nodes$y_cluster <- pos$V2
+    # Extrair coordenadas com indexacao de matriz para evitar falha de nomes de colunas
+    pos_mat <- as.matrix(sim$position)
+    df_nodes$x_cluster <- pos_mat[, 1]
+    df_nodes$y_cluster <- pos_mat[, 2]
     
     circs <- lapply(1:nrow(df_nodes), function(i) {
       st_buffer(st_point(c(df_nodes$x_cluster[i], df_nodes$y_cluster[i])), dist = df_nodes$radius[i])
@@ -180,30 +180,31 @@ gerar_animacao_votemap2 <- function(
   # =========================================================================
   todos_estados <- rbind(estado_1, estado_2, estado_3, estado_4)
   
-  message(">> Montando composicao grafica com estetica editorial clara...")
+  message(">> Montando composicao grafica com estetica editorial e tipografia tratada...")
   
   p <- ggplot(todos_estados) +
-    geom_sf(aes(fill = severidade, group = BAIRRO_NORM), color = "#ffffff", size = 0.3) +
+    geom_sf(aes(fill = severidade, group = BAIRRO_NORM), color = "#ffffff", size = 0.35) +
     scale_fill_manual(
       values = c(
-        "Acima da Media (Alta Severidade)" = "#b91c1c",
+        "Acima da Media (Alta Severidade)" = "#c026d3",
         "Abaixo da Media (Baixa Severidade)" = "#0284c7"
       ),
-      name = "Classificacao Municipal:"
+      name = "Classificacao Municipal em Relacao a Media:"
     ) +
     theme_void(base_size = 13) +
     theme(
-      plot.background = element_rect(fill = "#fdfcf7", color = NA),
-      panel.background = element_rect(fill = "#fdfcf7", color = NA),
-      legend.background = element_rect(fill = "#fdfcf7", color = NA),
-      text = element_text(color = "#1e293b"),
-      plot.title = element_text(size = 14, face = "bold", hjust = 0.5, color = "#0f172a", margin = margin(t = 16, b = 4)),
-      plot.subtitle = element_text(size = 11, face = "bold", hjust = 0.5, color = "#334155", margin = margin(b = 12)),
-      plot.caption = element_text(size = 8.5, hjust = 0.5, color = "#64748b", margin = margin(t = 12, b = 12)),
+      plot.background = element_rect(fill = cor_fundo, color = cor_fundo),
+      panel.background = element_rect(fill = cor_fundo, color = cor_fundo),
+      legend.background = element_rect(fill = cor_fundo, color = cor_fundo),
+      plot.margin = margin(t = 20, r = 24, b = 20, l = 24),
+      text = element_text(color = "#0f172a", family = "sans"),
+      plot.title = element_text(size = 14, face = "bold", hjust = 0.5, color = "#0f172a", margin = margin(b = 4)),
+      plot.subtitle = element_text(size = 11, face = "bold", hjust = 0.5, color = "#475569", margin = margin(b = 12)),
+      plot.caption = element_text(size = 8.5, hjust = 0.5, color = "#64748b", margin = margin(t = 12)),
       legend.position = "bottom",
       legend.direction = "horizontal",
-      legend.title = element_text(size = 10, face = "bold", color = "#1e293b"),
-      legend.text = element_text(size = 9.5, color = "#1e293b")
+      legend.title = element_text(size = 9.5, face = "bold", color = "#1e293b", margin = margin(r = 10)),
+      legend.text = element_text(size = 9, color = "#1e293b")
     ) +
     labs(
       title = "SEGURANCA PUBLICA EM BELEM (PA): DA GEOGRAFIA AO IMPACTO REAL",

@@ -1,5 +1,5 @@
 # R/03_animacao_morphing.R
-# Interpolacao geometrica continua (Karim Douieb / Dorling In-Situ) com layout editorial claro
+# Interpolacao geometrica continua (Karim Douieb / Dorling In-Situ) com layout editorial integrado
 
 suppressPackageStartupMessages({
   library(sf)
@@ -17,10 +17,12 @@ gerar_animacao_cartograma <- function(
   output_file = "outputs/animacao_dorling_seguranca_belem.gif",
   n_frames = 80,
   fps = 16,
-  largura = 850,
-  altura = 1050
+  largura = 680,
+  altura = 1000
 ) {
   message(">> Preparando estados geometricos para interpolacao in-situ...")
+  
+  cor_fundo <- "#f4f5f7"
   
   # Estado 1: Malha original de limites dos bairros
   estado_mapa <- bairros_dorling_sf %>%
@@ -42,44 +44,44 @@ gerar_animacao_cartograma <- function(
   st_crs(estado_dorling) <- st_crs(estado_mapa)
   dados_combinados <- rbind(estado_mapa, estado_dorling)
   
-  message(">> Montando composicao grafica editorial (layout claro, proporcao vertical)...")
+  message(">> Montando composicao grafica editorial integrada (fundo uniforme e proporcao esguia)...")
   
   p <- ggplot(dados_combinados) +
-    geom_sf(aes(fill = valor, group = BAIRRO_NORM), color = "#475569", size = 0.25) +
+    geom_sf(aes(fill = valor, group = BAIRRO_NORM), color = "#334155", size = 0.28) +
     scale_fill_viridis_c(
       option = "inferno",
       direction = -1,
       labels = scales::comma
     ) +
-    coord_sf(expand = FALSE) +
     theme_void(base_size = 13) +
     theme(
-      plot.background = element_rect(fill = "#fdfcf7", color = NA),
-      panel.background = element_rect(fill = "#fdfcf7", color = NA),
-      legend.background = element_rect(fill = "#fdfcf7", color = NA),
-      text = element_text(color = "#1e293b"),
-      plot.title = element_text(size = 14, face = "bold", hjust = 0.5, color = "#0f172a", margin = margin(t = 16, b = 4)),
-      plot.subtitle = element_text(size = 11, hjust = 0.5, color = "#475569", margin = margin(b = 10)),
-      plot.caption = element_text(size = 8.5, hjust = 0.5, color = "#64748b", margin = margin(t = 12, b = 12)),
+      plot.background = element_rect(fill = cor_fundo, color = cor_fundo),
+      panel.background = element_rect(fill = cor_fundo, color = cor_fundo),
+      legend.background = element_rect(fill = cor_fundo, color = cor_fundo),
+      plot.margin = margin(t = 22, r = 16, b = 18, l = 16),
+      text = element_text(color = "#0f172a", family = "sans"),
+      plot.title = element_text(size = 13.5, face = "bold", hjust = 0.5, color = "#0f172a", margin = margin(b = 4)),
+      plot.subtitle = element_text(size = 10.5, face = "bold", hjust = 0.5, color = "#475569", margin = margin(b = 8)),
+      plot.caption = element_text(size = 8, hjust = 0.5, color = "#64748b", margin = margin(t = 10, b = 6)),
       legend.position = "bottom",
       legend.direction = "horizontal",
       legend.box = "horizontal",
-      legend.title = element_text(size = 9.5, face = "bold", color = "#1e293b", margin = margin(b = 4)),
-      legend.text = element_text(size = 8.5, color = "#334155")
+      legend.title = element_text(size = 9, face = "bold", color = "#1e293b", margin = margin(b = 3)),
+      legend.text = element_text(size = 8, color = "#334155")
     ) +
     guides(
       fill = guide_colorbar(
         title = "Ocorrencias Registradas no Periodo (SIAC/SEGUP)",
         title.position = "top",
         title.hjust = 0.5,
-        barwidth = unit(18, "lines"),
-        barheight = unit(0.7, "lines")
+        barwidth = unit(16, "lines"),
+        barheight = unit(0.65, "lines")
       )
     ) +
     labs(
       title = "DISTRIBUICAO ESPACIAL DE OCORRENCIAS CRIMINAIS EM BELEM (PA)",
       subtitle = "{closest_state}",
-      caption = "Fonte dos dados: SIAC/CODEC - SEGUP/PA | Malha: GeoVisor Belem | Inspiracao: Karim Douieb / David Zumbach"
+      caption = "Fonte dos dados: SIAC/CODEC - SEGUP/PA | Malha: GeoVisor Belem | Metodologia: Dorling In-Situ"
     ) +
     transition_states(
       states = estado_nome,
