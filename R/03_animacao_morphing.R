@@ -1,5 +1,5 @@
 # R/03_animacao_morphing.R
-# Interpolação geométrica (Polygon Morphing) e renderização animada no padrão votemapswitzerland
+# Interpolacao geometrica (Polygon Morphing) e renderizacao animada no padrao votemapswitzerland
 
 suppressPackageStartupMessages({
   library(sf)
@@ -8,20 +8,21 @@ suppressPackageStartupMessages({
   library(gganimate)
   library(transformr)
   library(viridis)
+  library(gifski)
 })
 
 gerar_animacao_cartograma <- function(
   bairros_dorling_sf,
   coluna_valor = "TOTAL_CRIMES",
   output_file = "outputs/animacao_dorling_seguranca_belem.gif",
-  n_frames = 120,
-  fps = 20,
-  largura = 1200,
-  altura = 900
+  n_frames = 80,
+  fps = 16,
+  largura = 1000,
+  altura = 800
 ) {
-  message(">> Preparando estados geométricos para interpolação (morphing)...")
+  message(">> Preparando estados geometricos para interpolacao (morphing)...")
   
-  # Estado 1: Malha original de polígonos
+  # Estado 1: Malha original de poligonos unificados
   estado_mapa <- bairros_dorling_sf %>%
     mutate(
       estado_id = 1,
@@ -33,22 +34,25 @@ gerar_animacao_cartograma <- function(
   estado_dorling <- bairros_dorling_sf %>%
     mutate(
       estado_id = 2,
-      estado_nome = "2. Cartograma de Dorling (Raio Proporcional ao Volume de Ocorrencias)"
+      estado_nome = "2. Cartograma de Dorling (Raio Proporcional as Ocorrencias)"
     ) %>%
     st_set_geometry("geom_circulo") %>%
-    select(BAIRRO_NORM, valor = all_of(coluna_valor), estado_id, estado_nome)
+    select(BAIRRO_NORM, valor = all_of(coluna_valor), estado_id, estado_nome, geometry = geom_circulo)
   
-  # Unir os estados
-  dados_combinados <- bind_rows(estado_mapa, estado_dorling)
+  # Assegurar mesmo CRS em ambos os estados
+  st_crs(estado_dorling) <- st_crs(estado_mapa)
   
-  message(">> Montando composição gráfica com ggplot2...")
+  # Unir os dois estados para animacao
+  dados_combinados <- rbind(estado_mapa, estado_dorling)
+  
+  message(">> Montando composicao grafica com ggplot2...")
   
   p <- ggplot(dados_combinados) +
-    geom_sf(aes(fill = valor, group = BAIRRO_NORM), color = "#1a1a1a", size = 0.3) +
+    geom_sf(aes(fill = valor, group = BAIRRO_NORM), color = "#21262d", size = 0.3) +
     scale_fill_viridis_c(
       option = "inferno",
       direction = -1,
-      name = "Ocorrências\nRegistradas\n(SIAC/SEGUP)",
+      name = "Ocorrencias\nRegistradas\n(SIAC/SEGUP)",
       labels = scales::comma
     ) +
     theme_void(base_size = 14) +
@@ -57,9 +61,9 @@ gerar_animacao_cartograma <- function(
       panel.background = element_rect(fill = "#0d1117", color = NA),
       legend.background = element_rect(fill = "#0d1117", color = NA),
       text = element_text(color = "#e6edf3"),
-      plot.title = element_text(size = 18, face = "bold", hjust = 0.5, color = "#58a6ff", margin = margin(t = 15, b = 5)),
-      plot.subtitle = element_text(size = 13, hjust = 0.5, color = "#8b949e", margin = margin(b = 15)),
-      plot.caption = element_text(size = 10, hjust = 0.5, color = "#6e7681", margin = margin(t = 15, b = 10)),
+      plot.title = element_text(size = 16, face = "bold", hjust = 0.5, color = "#58a6ff", margin = margin(t = 12, b = 4)),
+      plot.subtitle = element_text(size = 12, hjust = 0.5, color = "#8b949e", margin = margin(b = 12)),
+      plot.caption = element_text(size = 9, hjust = 0.5, color = "#6e7681", margin = margin(t = 12, b = 8)),
       legend.position = "right",
       legend.text = element_text(color = "#c9d1d9"),
       legend.title = element_text(color = "#f0f6fc", face = "bold")
@@ -69,7 +73,6 @@ gerar_animacao_cartograma <- function(
       subtitle = "{closest_state}",
       caption = "Fonte dos dados: SIAC/CODEC - SEGUP/PA | Malha vetorial: GeoVisor Belem | Metodologia: Cartograma de Dorling"
     ) +
-    # Animação de transição suave entre a malha e as partículas
     transition_states(
       states = estado_nome,
       transition_length = 3,
@@ -77,20 +80,19 @@ gerar_animacao_cartograma <- function(
     ) +
     ease_aes("cubic-in-out")
   
-  message(">> Renderizando animação (gganimate + gifski)... Isso pode levar alguns minutos.")
+  message(">> Renderizando animacao via gganimate + gifski (", n_frames, " quadros)...")
+  dir.create(dirname(output_file), showWarnings = FALSE, recursive = TRUE)
+  
   anim <- animate(
     p,
     nframes = n_frames,
     fps = fps,
     width = largura,
     height = altura,
-    res = 110,
-    renderer = gifski_renderer()
+    res = 96,
+    renderer = gifski_renderer(file = output_file)
   )
   
-  dir.create(dirname(output_file), showWarnings = FALSE, recursive = TRUE)
-  anim_save(output_file, animation = anim)
-  message(">> Animação salva com sucesso em: ", output_file)
-  
+  message(">> Animacao gravada com sucesso em: ", output_file)
   return(output_file)
 }
