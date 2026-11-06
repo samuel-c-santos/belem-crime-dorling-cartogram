@@ -1,6 +1,5 @@
 # R/04_animacao_narrativa_estagios.R
-# Animacao multi-estagios no estilo votemapswitzerland2.R (David Zumbach)
-# Narrativa em 4 atos com agrupamento por Severidade Estatistica
+# Animacao em quatro atos com agrupamento por Severidade Estatistica (David Zumbach)
 
 suppressPackageStartupMessages({
   library(sf)
@@ -25,17 +24,20 @@ gerar_animacao_votemap2 <- function(
   largura = 800,
   altura = 800
 ) {
-  message(">> Iniciando construcao dos estagios (votemapswitzerland2.R)...")
+  message(">> Iniciando construcao dos estagios...")
   
-  # 1. Definir media municipal e classificacao de severidade
+  # 1. Definir media municipal e classificacao de severidade afirmativa
   media_crimes <- mean(bairros_sf[[coluna_valor]], na.rm = TRUE)
   bairros_sf <- bairros_sf %>%
     mutate(
       valor = .data[[coluna_valor]],
-      severidade = ifelse(valor >= media_crimes, "Acima da Media (Alta Severidade)", "Abaixo da Media (Baixa Severidade)")
+      severidade = factor(
+        ifelse(valor >= media_crimes, "Acima da Media", "Abaixo da Media"),
+        levels = c("Abaixo da Media", "Acima da Media")
+      )
     )
   
-  message(sprintf(">> Media municipal de crimes calculada: %.1f ocorrencias.", media_crimes))
+  message(sprintf(">> Media municipal: %.1f ocorrencias.", media_crimes))
   
   # Coordenadas e extensoes da malha
   bbox_orig <- st_bbox(bairros_sf)
@@ -45,19 +47,19 @@ gerar_animacao_votemap2 <- function(
   centro_y     <- (bbox_orig$ymax + bbox_orig$ymin) / 2
   
   # =========================================================================
-  # ATO 1: Mapa Geografico Real
+  # ATO 1: Malha Territorial dos Bairros
   # =========================================================================
   estado_1 <- bairros_sf %>%
     mutate(
       fase_id = 1,
-      fase_label = "1. Limite Territorial Oficial (Vies de Area das Ilhas)"
+      fase_label = "1. Malha Territorial dos Bairros"
     ) %>%
     select(BAIRRO_NORM, valor, severidade, fase_id, fase_label, geometry)
   
   # =========================================================================
-  # ATO 2: Grade Ordenada por Area Territorial (9 colunas x 8 linhas)
+  # ATO 2: Ordenamento em Grade por Extensao Territorial (9 colunas x 8 linhas)
   # =========================================================================
-  message(">> Calculando posicoes e escalas da grade...")
+  message(">> Calculando distribuicao da grade...")
   
   n_cols <- 9
   n_rows <- 8
@@ -75,7 +77,6 @@ gerar_animacao_votemap2 <- function(
       y_grid = bbox_orig$ymax - (row_idx + 0.5) * step_y
     )
   
-  # Escalar e transladar os poligonos para preencherem visivelmente a celula da grade
   geoms_grid <- lapply(1:nrow(bairros_grid), function(i) {
     b_geom <- bairros_grid$geometry[[i]]
     cx <- bairros_grid$x_orig[i]
@@ -83,29 +84,26 @@ gerar_animacao_votemap2 <- function(
     gx <- bairros_grid$x_grid[i]
     gy <- bairros_grid$y_grid[i]
     
-    # Dimensoes do poligono
     bb <- st_bbox(b_geom)
     b_w <- max(bb$xmax - bb$xmin, 100)
     b_h <- max(bb$ymax - bb$ymin, 100)
     
-    # Fator de escala para ocupar ~75% da celula da grade
     escala <- min((step_x * 0.75) / b_w, (step_y * 0.75) / b_h)
-    
     (b_geom - c(cx, cy)) * escala + c(gx, gy)
   })
   
   estado_2 <- bairros_grid %>%
     mutate(
       fase_id = 2,
-      fase_label = "2. Ordenamento em Grade por Tamanho Territorial"
+      fase_label = "2. Ordenamento em Grade por Extensao Territorial"
     ) %>%
     st_set_geometry(st_sfc(geoms_grid, crs = st_crs(bairros_sf))) %>%
     select(BAIRRO_NORM, valor, severidade, fase_id, fase_label, geometry)
   
   # =========================================================================
-  # ATO 3: Circulos Proporcionais ao Crime na Grade
+  # ATO 3: Dimensionamento Radial por Volume de Ocorrencias
   # =========================================================================
-  message(">> Gerando circulos proporcionais na grade...")
+  message(">> Calculando dimensionamento radial...")
   
   raio_max_grid <- min(step_x, step_y) * 0.42
   max_valor <- max(bairros_grid$valor, na.rm = TRUE)
@@ -121,15 +119,15 @@ gerar_animacao_votemap2 <- function(
   estado_3 <- bairros_grid %>%
     mutate(
       fase_id = 3,
-      fase_label = "3. Transmutacao em Circulos: Desconstrucao da Ilusao de Area"
+      fase_label = "3. Dimensionamento Radial por Volume de Ocorrencias"
     ) %>%
     st_set_geometry(st_sfc(circulos_grid, crs = st_crs(bairros_sf))) %>%
     select(BAIRRO_NORM, valor, severidade, fase_id, fase_label, geometry)
   
   # =========================================================================
-  # ATO 4: Rearranjo em Dois Enxames de Bolhas (Severidade Estatistica)
+  # ATO 4: Agrupamento em Enxames por Severidade Estatistica
   # =========================================================================
-  message(">> Empacotando enxames de bolhas por Severidade Estatistica...")
+  message(">> Executando agrupamento por severidade...")
   
   x_centro_alta  <- bbox_orig$xmin + 0.32 * largura_mapa
   x_centro_baixa <- bbox_orig$xmin + 0.68 * largura_mapa
@@ -172,48 +170,67 @@ gerar_animacao_votemap2 <- function(
       st_set_geometry(st_sfc(circs, crs = st_crs(bairros_sf)))
   }
   
-  cluster_alta  <- empacotar_cluster(bairros_grid %>% filter(severidade == "Acima da Media (Alta Severidade)"), x_centro_alta, y_centro_ambos)
-  cluster_baixa <- empacotar_cluster(bairros_grid %>% filter(severidade == "Abaixo da Media (Baixa Severidade)"), x_centro_baixa, y_centro_ambos)
+  cluster_alta  <- empacotar_cluster(bairros_grid %>% filter(severidade == "Acima da Media"), x_centro_alta, y_centro_ambos)
+  cluster_baixa <- empacotar_cluster(bairros_grid %>% filter(severidade == "Abaixo da Media"), x_centro_baixa, y_centro_ambos)
   
   estado_4 <- bind_rows(cluster_alta, cluster_baixa) %>%
     mutate(
       fase_id = 4,
-      fase_label = "4. Rearranjo Comparativo: Alta Severidade vs Baixa Severidade"
+      fase_label = "4. Agrupamento em Enxames por Severidade Estatistica"
     ) %>%
     select(BAIRRO_NORM, valor, severidade, fase_id, fase_label, geometry)
   
   # =========================================================================
-  # Consolidacao dos 4 Atos
+  # Consolidacao
   # =========================================================================
   todos_estados <- rbind(estado_1, estado_2, estado_3, estado_4)
   
   message(">> Montando composicao grafica...")
   
-  familia_fonte <- if ("plex" %in% tryCatch(sysfonts::font_families(), error = function(e) "")) "plex" else "sans"
+  familia_fonte <- {
+    fams <- tryCatch(sysfonts::font_families(), error = function(e) character(0))
+    if ("barlow" %in% fams) "barlow"
+    else if ("inter" %in% fams) "inter"
+    else if ("plex" %in% fams) "plex"
+    else "sans"
+  }
   
   p <- ggplot(todos_estados) +
     geom_sf(aes(fill = severidade, group = BAIRRO_NORM), color = "#475569", size = 0.25) +
     scale_fill_manual(
       values = c(
-        "Acima da Media (Alta Severidade)" = "#b91c1c",
-        "Abaixo da Media (Baixa Severidade)" = "#0284c7"
+        "Abaixo da Media" = "#0284c7",
+        "Acima da Media"  = "#b91c1c"
       ),
-      name = "Classificacao Municipal em Relacao a Media:"
+      name = "Severidade em Relacao a Media Municipal"
     ) +
     theme_void(base_size = 13) +
     theme(
       plot.background = element_rect(fill = cor_fundo, color = NA),
       panel.background = element_rect(fill = cor_fundo, color = NA),
       legend.background = element_rect(fill = cor_fundo, color = NA),
-      plot.margin = margin(t = 16, r = 16, b = 16, l = 16),
+      plot.margin = margin(t = 16, r = 24, b = 16, l = 24),
       text = element_text(color = "#0f172a", family = familia_fonte),
       plot.title = element_text(size = 14, face = "bold", hjust = 0.5, color = "#0f172a", margin = margin(b = 4)),
       plot.subtitle = element_text(size = 11, face = "bold", hjust = 0.5, color = "#334155", margin = margin(b = 8)),
       plot.caption = element_text(size = 8.5, hjust = 0.5, color = "#64748b", margin = margin(t = 10, b = 4)),
       legend.position = "bottom",
       legend.direction = "horizontal",
-      legend.title = element_text(size = 9.5, face = "bold", color = "#1e293b", margin = margin(r = 8)),
+      legend.box = "vertical",
+      legend.box.just = "center",
+      legend.justification = "center",
+      legend.spacing.x = unit(0.4, "cm"),
+      legend.title = element_text(size = 9.5, face = "bold", color = "#1e293b", hjust = 0.5, margin = margin(b = 4)),
       legend.text = element_text(size = 9, color = "#1e293b")
+    ) +
+    guides(
+      fill = guide_legend(
+        title.position = "top",
+        title.hjust = 0.5,
+        label.position = "right",
+        keywidth = unit(1.2, "lines"),
+        keyheight = unit(0.8, "lines")
+      )
     ) +
     labs(
       title = "SEGURANCA PUBLICA EM BELEM (PA): DA GEOGRAFIA AO IMPACTO REAL",
@@ -227,7 +244,7 @@ gerar_animacao_votemap2 <- function(
     ) +
     ease_aes("cubic-in-out")
   
-  message(">> Renderizando animacao multi-estagios (", n_frames, " quadros)...")
+  message(">> Renderizando animacao (", n_frames, " quadros)...")
   dir.create(dirname(output_file), showWarnings = FALSE, recursive = TRUE)
   
   anim <- animate(
@@ -240,6 +257,6 @@ gerar_animacao_votemap2 <- function(
     renderer = gifski_renderer(file = output_file)
   )
   
-  message(">> Animacao gravada com sucesso em: ", output_file)
+  message(">> Animacao salva em: ", output_file)
   return(output_file)
 }

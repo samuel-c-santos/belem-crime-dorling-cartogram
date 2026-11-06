@@ -77,6 +77,6 @@ calcular_dorling_layout <- function(
   
   bairros_sf$geom_circulo <- circulos_sfc
   
-  message(">> Layout de Dorling estabilizado sem sobreposicoes!")
+  message(">> Layout de Dorling convergido e estabilizado com sucesso.")
   return(bairros_sf)
 }

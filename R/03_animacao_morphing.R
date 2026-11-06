@@ -31,7 +31,7 @@ gerar_animacao_cartograma <- function(
     ) %>%
     select(BAIRRO_NORM, valor = all_of(coluna_valor), estado_id, estado_nome, geometry)
   
-  # Estado 2: Cartograma de Dorling (circulos in-situ sem sobreposicao)
+  # Estado 2: Cartograma de Dorling (circulos proporcionais in-situ)
   estado_dorling <- bairros_dorling_sf %>%
     mutate(
       estado_id = 2,
@@ -45,7 +45,13 @@ gerar_animacao_cartograma <- function(
   
   message(">> Montando composicao grafica...")
   
-  familia_fonte <- if ("plex" %in% tryCatch(sysfonts::font_families(), error = function(e) "")) "plex" else "sans"
+  familia_fonte <- {
+    fams <- tryCatch(sysfonts::font_families(), error = function(e) character(0))
+    if ("barlow" %in% fams) "barlow"
+    else if ("inter" %in% fams) "inter"
+    else if ("plex" %in% fams) "plex"
+    else "sans"
+  }
   
   p <- ggplot(dados_combinados) +
     geom_sf(aes(fill = valor, group = BAIRRO_NORM), color = "#475569", size = 0.25) +
@@ -59,15 +65,17 @@ gerar_animacao_cartograma <- function(
       plot.background = element_rect(fill = cor_fundo, color = NA),
       panel.background = element_rect(fill = cor_fundo, color = NA),
       legend.background = element_rect(fill = cor_fundo, color = NA),
-      plot.margin = margin(t = 16, r = 16, b = 16, l = 16),
+      plot.margin = margin(t = 16, r = 24, b = 16, l = 24),
       text = element_text(color = "#0f172a", family = familia_fonte),
       plot.title = element_text(size = 14, face = "bold", hjust = 0.5, color = "#0f172a", margin = margin(b = 4)),
       plot.subtitle = element_text(size = 11, face = "bold", hjust = 0.5, color = "#475569", margin = margin(b = 8)),
       plot.caption = element_text(size = 8.5, hjust = 0.5, color = "#64748b", margin = margin(t = 10, b = 4)),
       legend.position = "bottom",
       legend.direction = "horizontal",
-      legend.box = "horizontal",
-      legend.title = element_text(size = 9.5, face = "bold", color = "#1e293b", margin = margin(b = 4)),
+      legend.box = "vertical",
+      legend.box.just = "center",
+      legend.justification = "center",
+      legend.title = element_text(size = 9.5, face = "bold", color = "#1e293b", hjust = 0.5, margin = margin(b = 4)),
       legend.text = element_text(size = 8.5, color = "#334155")
     ) +
     guides(
