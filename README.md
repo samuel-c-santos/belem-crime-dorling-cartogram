@@ -1,5 +1,7 @@
 # Cartograma de Dorling para Analise de Criminalidade Urbana em Belem (PA)
 
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/samuel-c-santos/belem-crime-dorling-cartogram/blob/main/notebooks/colab_runner.ipynb)
+
 Pipeline computacional integrado em Python e R para extracao de registros criminais do Sistema Integrado de Seguranca Publica (SIAC/SEGUP-PA), tratamento geoespacial metrico e renderizacao de cartograma animado de Dorling com interpolacao geometrica continua (polygon-to-circle morphing).
 
 ## 1. Descricao Tecnica
@@ -75,6 +77,14 @@ python scripts/01_extrair_siac.py "2024-01-01" "2024-03-31" "data"
 ### 4.2. Ambiente de Nuvem (Google Colab)
 O processamento computacional intensivo de particulas e a renderizacao quadro a quadro sao estruturados para execucao no Google Colab sob ambiente Linux (Ubuntu) com kernel R nativo.
 
-1. Abrir o arquivo `notebooks/colab_runner.ipynb`.
+1. Abrir o caderno atraves do atalho de execucao: [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/samuel-c-santos/belem-crime-dorling-cartogram/blob/main/notebooks/colab_runner.ipynb)
 2. Executar a celula de configuracao para instalacao dos pacotes de sistema (`libgdal-dev`, `libgeos-dev`, `libproj-dev`, `libudunits2-dev`) e bibliotecas R correspondentes.
 3. Executar o fluxo sequencial de calculo e renderizacao.
+
+## 5. Referencias e Citacoes
+
+1. **Dorling, D. (1996).** *Area Cartograms: Their Use and Creation.* Concepts and Techniques in Modern Geography (CATMOG), No. 59. University of East Anglia, Norwich: Environmental Publications.
+2. **Grossenbacher, T. (2018).** *votemapswitzerland: Code and Data for the Animated Map of Swiss Referendum Votes.* SRF Data / GitHub repository. Disponivel em: <https://github.com/grssnbchr/votemapswitzerland>.
+3. **Secretaria de Estado de Seguranca Publica e Defesa Social do Para (SEGUP/PA).** *Sistema Integrado de Seguranca Publica (SIAC).* Coordenadoria de Estatistica e Analise Criminal (CODEC). Dados abertos de ocorrencias criminais. Disponivel em: <https://codec.segup.pa.gov.br/>.
+4. **Pedersen, T. L. (2020).** *transformr: Polygon and Path Morphing; particles: A Simulation of Particle Systems; gganimate: A Grammar of Animated Graphics.* R packages.
+5. **Prefeitura Municipal de Belem / CODEM.** *Malha de Bairros Oficiais do Municipio de Belem.* Base vetorial consolidada via projeto GeoVisor Belem.
