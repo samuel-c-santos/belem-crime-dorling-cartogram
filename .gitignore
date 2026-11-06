@@ -18,3 +18,6 @@ ehthumbs.db
 outputs/*.gif
 outputs/*.mp4
 !outputs/.gitkeep
+
+# Diretrizes locais
+diretriz.md
